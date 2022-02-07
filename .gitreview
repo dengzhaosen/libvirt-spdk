@@ -1,0 +1,5 @@
+[gerrit]
+host=review.openstack.com
+port=29418
+project=openstack-rocky/libvirt.git
+defaultbranch=master
