@@ -4494,7 +4494,7 @@ qemuBuildVhostUserChardevStr(const char *alias,
                              int *fd,
                              virCommandPtr cmd)
 {
-	g_autofree char *chardev_alias = qemuDomainGetVhostUserChrAlias(alias);
+    g_autofree char *chardev_alias = qemuDomainGetVhostUserChrAlias(alias);
     char *chardev = NULL;
 
     if (*fd == -1) {

@@ -303,7 +303,7 @@ struct _virStorageSource {
 
     virStorageSourceNVMeDefPtr nvme; /* type == VIR_STORAGE_TYPE_NVME */
 
-	virDomainChrSourceDefPtr vhostuser; /* type == VIR_STORAGE_TYPE_VHOST_USER */
+    virDomainChrSourceDefPtr vhostuser; /* type == VIR_STORAGE_TYPE_VHOST_USER */
 
     virStorageSourceInitiatorDef initiator;
 
