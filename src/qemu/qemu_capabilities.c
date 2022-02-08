@@ -596,7 +596,10 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "intel-iommu.aw-bits",
               "spapr-tpm-proxy",
               "numa.hmat",
-              "blockdev-hostdev-scsi"
+              "blockdev-hostdev-scsi",
+
+             /* 380 */
+             "vhost-user-blk",
     );
 
 
@@ -1323,6 +1326,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
     { "tcg-accel", QEMU_CAPS_TCG },
     { "pvscsi", QEMU_CAPS_SCSI_PVSCSI },
     { "spapr-tpm-proxy", QEMU_CAPS_DEVICE_SPAPR_TPM_PROXY },
+    { "vhost-user-blk", QEMU_CAPS_DEVICE_VHOST_USER_BLK },
 };
 
 

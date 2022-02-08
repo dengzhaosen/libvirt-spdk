@@ -97,3 +97,5 @@ const char *qemuDomainGetManagedPRAlias(void);
 char *qemuDomainGetUnmanagedPRAlias(const char *parentalias);
 
 const char *qemuDomainGetDBusVMStateAlias(void);
+
+const char *qemuDomainGetVhostUserChrAlias(const char *devalias);

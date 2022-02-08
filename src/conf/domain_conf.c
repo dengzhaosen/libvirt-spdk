@@ -1336,6 +1336,16 @@ static virClassPtr virDomainXMLOptionClass;
 static void virDomainObjDispose(void *obj);
 static void virDomainXMLOptionDispose(void *obj);
 
+static void
+virDomainChrSourceDefFormat(virBufferPtr buf,
+                            virDomainChrSourceDefPtr def,
+                            unsigned int flags);
+static int
+virDomainChrSourceReconnectDefParseXML(virDomainChrSourceReconnectDefPtr def,
+                                       xmlNodePtr node,
+                                       xmlXPathContextPtr ctxt);
+
+
 static int virDomainObjOnceInit(void)
 {
     if (!VIR_CLASS_NEW(virDomainObj, virClassForObjectLockable()))
@@ -5276,6 +5286,13 @@ virDomainDiskDefPostParse(virDomainDiskDefPtr disk,
             disk->src->nvme->managed = VIR_TRISTATE_BOOL_YES;
     }
 
+    /* vhost-user doesn't allow us to snapshot, disable snapshots by default */
+    if (disk->src->type == VIR_STORAGE_TYPE_VHOST_USER &&
+        disk->snapshot == VIR_DOMAIN_SNAPSHOT_LOCATION_DEFAULT) {
+        disk->snapshot = VIR_DOMAIN_SNAPSHOT_LOCATION_NONE;
+    }
+
+
     if (disk->info.type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE &&
         virDomainDiskDefAssignAddress(xmlopt, disk, def) < 0) {
         return -1;
@@ -6104,6 +6121,188 @@ virSecurityDeviceLabelDefValidateXML(virSecurityDeviceLabelDefPtr *seclabels,
 
 
 static int
+virDomainDiskVhostUserValidate(const virDomainDiskDef *disk)
+{
+	if (disk->bus != VIR_DOMAIN_DISK_BUS_VIRTIO) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("vhostuser disk supports only virtio bus"));
+		return -1;
+	}
+
+	if (disk->snapshot != VIR_DOMAIN_SNAPSHOT_LOCATION_NONE) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("only snapshot=no is supported with vhostuser disk"));
+		return -1;
+	}
+
+	/* Unsupported driver attributes */
+
+	if (disk->cachemode != VIR_DOMAIN_DISK_CACHE_DEFAULT) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("cache is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->error_policy || disk->rerror_policy) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("error_policy is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->iomode) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("io is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->ioeventfd != VIR_TRISTATE_SWITCH_ABSENT) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("ioeventfd is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->copy_on_read) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("copy_on_read is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->discard) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("discard is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->iothread) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("iothread is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->detect_zeroes) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("detect_zeroes is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	/* Unsupported driver elements */
+
+	if (disk->virtio) {
+		if (disk->virtio->iommu != VIR_TRISTATE_SWITCH_ABSENT) {
+			virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+				_("iommu is not supported with vhostuser disk"));
+			return -1;
+		}
+
+		if (disk->virtio->ats != VIR_TRISTATE_SWITCH_ABSENT) {
+			virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+				_("ats is not supported with vhostuser disk"));
+			return -1;
+		}
+
+		if (disk->virtio->packed != VIR_TRISTATE_SWITCH_ABSENT) {
+			virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+				_("packed is not supported with vhostuser disk"));
+			return -1;
+		}
+	}
+
+	if (disk->src->metadataCacheMaxSize > 0) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("metadata_cache is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	/* Unsupported disk elements */
+
+	if (disk->blkdeviotune.group_name ||
+		virDomainBlockIoTuneInfoHasAny(&disk->blkdeviotune)) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("iotune is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->src->backingStore) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("backingStore is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->src->encryption) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("encryption is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->src->readonly) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("readonly is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->src->shared) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("shareable is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->transient) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("transient is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->serial) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("serial is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->wwn) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("wwn is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->vendor) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("vendor is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->product) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("product is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->src->auth) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("auth is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->geometry.cylinders > 0 ||
+		disk->geometry.heads > 0 ||
+		disk->geometry.sectors > 0 ||
+		disk->geometry.trans != VIR_DOMAIN_DISK_TRANS_DEFAULT) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("geometry is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	if (disk->blockio.logical_block_size > 0 ||
+		disk->blockio.physical_block_size > 0) {
+		virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+			_("blockio is not supported with vhostuser disk"));
+		return -1;
+	}
+
+	return 0;
+}
+
+
+static int
 virDomainDiskDefValidate(const virDomainDef *def,
                          const virDomainDiskDef *disk)
 {
@@ -6170,6 +6369,11 @@ virDomainDiskDefValidate(const virDomainDef *def,
             return -1;
         }
     }
+
+	if (disk->src->type == VIR_STORAGE_TYPE_VHOST_USER &&
+			virDomainDiskVhostUserValidate(disk) < 0) {
+			return -1;
+	}
 
     for (next = disk->src; next; next = next->backingStore) {
         if (virSecurityDeviceLabelDefValidateXML(next->seclabels,
@@ -9689,6 +9893,42 @@ virDomainDiskSourceNVMeParse(xmlNodePtr node,
     return 0;
 }
 
+static int
+virDomainDiskSourceVHostUserParse(xmlNodePtr node,
+                                  virStorageSourcePtr src,
+                                  virDomainXMLOptionPtr xmlopt,
+                                  xmlXPathContextPtr ctxt)
+{
+    g_autofree char *type = virXMLPropString(node, "type");
+    g_autofree char *path = virXMLPropString(node, "path");
+	if (!type) {
+	    virReportError(VIR_ERR_XML_ERROR, "%s",
+			_("missing 'type' attribute for vhostuser disk source"));
+		return -1;
+	}
+	if (STRNEQ(type, "unix")) {
+		virReportError(VIR_ERR_XML_ERROR, "%s",
+			_("invalid 'type' attribute for vhostuser disk source"));
+		return -1;
+	}
+	if (!path) {
+		virReportError(VIR_ERR_XML_ERROR, "%s",
+			_("missing 'path' attribute for vhostuser disk source"));
+		return -1;
+	}
+	if (!(src->vhostuser = virDomainChrSourceDefNew(xmlopt)))
+		return -1;
+	src->vhostuser->type = virDomainChrTypeFromString(type);
+	src->vhostuser->data.nix.path = g_steal_pointer(&path);
+	if (virDomainChrSourceReconnectDefParseXML(&src->vhostuser->data.nix.reconnect,
+		                                       node,
+		                                       ctxt) < 0) {
+		return -1;
+	}
+	return 0;
+}
+
+
 
 static int
 virDomainDiskSourcePRParse(xmlNodePtr node,
@@ -9846,6 +10086,10 @@ virDomainStorageSourceParse(xmlNodePtr node,
         if (virDomainDiskSourceNVMeParse(node, ctxt, src) < 0)
             return -1;
         break;
+	case VIR_STORAGE_TYPE_VHOST_USER:
+		if (virDomainDiskSourceVHostUserParse(node, src, xmlopt, ctxt) < 0)
+			return -1;
+		break;
     case VIR_STORAGE_TYPE_NONE:
     case VIR_STORAGE_TYPE_LAST:
         virReportError(VIR_ERR_INTERNAL_ERROR,
@@ -25094,6 +25338,22 @@ virDomainDiskSourceNVMeFormat(virBufferPtr attrBuf,
 }
 
 
+static void
+virDomainChrSourceReconnectDefFormat(virBufferPtr buf,
+                                     virDomainChrSourceReconnectDefPtr def);
+
+
+static void
+virDomainDiskSourceVhostuserFormat(virBufferPtr attrBuf,
+                                   virBufferPtr childBuf,
+                                   virDomainChrSourceDefPtr vhostuser)
+{
+    virBufferAddLit(attrBuf, " type='unix'");
+	virBufferAsprintf(attrBuf, " path='%s'", vhostuser->data.nix.path);
+	virDomainChrSourceReconnectDefFormat(childBuf, &vhostuser->data.nix.reconnect);
+}
+
+
 static int
 virDomainDiskSourceFormatPrivateData(virBufferPtr buf,
                                      virStorageSourcePtr src,
@@ -25212,6 +25472,11 @@ virDomainDiskSourceFormat(virBufferPtr buf,
     case VIR_STORAGE_TYPE_NVME:
         virDomainDiskSourceNVMeFormat(&attrBuf, &childBuf, src->nvme);
         break;
+
+	case VIR_STORAGE_TYPE_VHOST_USER:
+		virDomainDiskSourceVhostuserFormat(&attrBuf, &childBuf, src->vhostuser);
+		break;
+
 
     case VIR_STORAGE_TYPE_NONE:
     case VIR_STORAGE_TYPE_LAST:
