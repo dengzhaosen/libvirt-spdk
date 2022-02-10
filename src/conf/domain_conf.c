@@ -1336,7 +1336,7 @@ static virClassPtr virDomainXMLOptionClass;
 static void virDomainObjDispose(void *obj);
 static void virDomainXMLOptionDispose(void *obj);
 
-static void
+static int
 virDomainChrSourceDefFormat(virBufferPtr buf,
                             virDomainChrSourceDefPtr def,
                             unsigned int flags);
