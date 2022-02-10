@@ -28,7 +28,7 @@
 #include "virseclabel.h"
 #include "virstorageencryption.h"
 #include "virsecret.h"
-#include "virconftypes.h"
+#include "../conf/virconftypes.h"
 #include "virenum.h"
 #include "virpci.h"
 
@@ -324,6 +324,8 @@ struct _virStorageSource {
     unsigned long long allocation; /* in bytes, 0 if unknown */
     unsigned long long physical; /* in bytes, 0 if unknown */
     bool has_allocation; /* Set to true when provided in XML */
+
+    unsigned long long metadataCacheMaxSize; /* size of the metadata cache in bytes */
 
     size_t nseclabels;
     virSecurityDeviceLabelDefPtr *seclabels;
