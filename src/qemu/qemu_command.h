@@ -132,7 +132,7 @@ qemuBuildStorageSourceChainAttachPrepareDrive(virDomainDiskDefPtr disk,
 
 
 qemuBlockStorageSourceChainDataPtr
-emuBuildStorageSourceChainAttachPrepareChardev(virDomainDiskDefPtr disk);
+qemuBuildStorageSourceChainAttachPrepareChardev(virDomainDiskDefPtr disk);
 
 
 qemuBlockStorageSourceChainDataPtr

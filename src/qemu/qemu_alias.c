@@ -838,7 +838,7 @@ qemuDomainGetDBusVMStateAlias(void)
 }
 
 
-const char *
+char *
 qemuDomainGetVhostUserChrAlias(const char *devalias)
 
 {
