@@ -14642,6 +14642,7 @@ qemuDomainSnapshotPrepareDiskExternalInactive(virDomainSnapshotDiskDefPtr snapdi
     case VIR_STORAGE_TYPE_DIR:
     case VIR_STORAGE_TYPE_VOLUME:
     case VIR_STORAGE_TYPE_VHOST:
+    case VIR_STORAGE_TYPE_VHOST_USER:
     case VIR_STORAGE_TYPE_NVME:
     case VIR_STORAGE_TYPE_NONE:
     case VIR_STORAGE_TYPE_LAST:
@@ -14660,6 +14661,7 @@ qemuDomainSnapshotPrepareDiskExternalInactive(virDomainSnapshotDiskDefPtr snapdi
     case VIR_STORAGE_TYPE_DIR:
     case VIR_STORAGE_TYPE_VOLUME:
     case VIR_STORAGE_TYPE_VHOST:
+    case VIR_STORAGE_TYPE_VHOST_USER:
     case VIR_STORAGE_TYPE_NVME:
     case VIR_STORAGE_TYPE_NONE:
     case VIR_STORAGE_TYPE_LAST:
@@ -14733,6 +14735,7 @@ qemuDomainSnapshotPrepareDiskExternalActive(virDomainObjPtr vm,
     case VIR_STORAGE_TYPE_DIR:
     case VIR_STORAGE_TYPE_VOLUME:
     case VIR_STORAGE_TYPE_VHOST:
+    case VIR_STORAGE_TYPE_VHOST_USER:
     case VIR_STORAGE_TYPE_NVME:
     case VIR_STORAGE_TYPE_NONE:
     case VIR_STORAGE_TYPE_LAST:
@@ -14863,6 +14866,7 @@ qemuDomainSnapshotPrepareDiskInternal(virDomainDiskDefPtr disk,
     case VIR_STORAGE_TYPE_DIR:
     case VIR_STORAGE_TYPE_VOLUME:
     case VIR_STORAGE_TYPE_VHOST:
+    case VIR_STORAGE_TYPE_VHOST_USER:
     case VIR_STORAGE_TYPE_NVME:
     case VIR_STORAGE_TYPE_NONE:
     case VIR_STORAGE_TYPE_LAST:
@@ -19429,7 +19433,7 @@ qemuDomainSetBlockIoTune(virDomainPtr dom,
             goto endjob;
         }
 
-        if (!qemuDomainDiskBlockIoTuneIsSupported(disk->src))
+        if (!qemuDomainDiskBlockIoTuneIsSupported(conf_disk->src))
             goto endjob;
 
         conf_cur_info = qemuDomainFindGroupBlockIoTune(persistentDef, conf_disk, &info);
