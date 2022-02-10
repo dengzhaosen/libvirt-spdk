@@ -613,6 +613,8 @@ struct _virQEMUCapsMachineType {
     bool qemuDefault;
     char *defaultCPU;
     bool numaMemSupported;
+	char *defaultRAMid;
+    bool deprecated;
 };
 
 typedef struct _virQEMUCapsHostCPUData virQEMUCapsHostCPUData;
@@ -2551,6 +2553,25 @@ virQEMUCapsGetMachineNumaMemSupported(virQEMUCapsPtr qemuCaps,
     }
 
     return false;
+}
+
+
+ const char *
+virQEMUCapsGetMachineDefaultRAMid(virQEMUCapsPtr qemuCaps,
+                                  virDomainVirtType virtType,
+                                  const char *name)
+{
+    virQEMUCapsAccelPtr accel;
+	size_t i;
+
+    accel = virQEMUCapsGetAccel(qemuCaps, virtType);
+
+    for (i = 0; i < accel->nmachineTypes; i++) {
+        if (STREQ(accel->machineTypes[i].name, name))
+            return accel->machineTypes[i].defaultRAMid;
+    }
+
+    return NULL;
 }
 
 

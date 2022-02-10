@@ -2680,6 +2680,7 @@ virStorageSourceClear(virStorageSourcePtr def)
     virStorageEncryptionFree(def->encryption);
     virStoragePRDefFree(def->pr);
     virStorageSourceNVMeDefFree(def->nvme);
+    virObjectUnref(def->vhostuser);
     virStorageSourceSeclabelsClear(def);
     virStoragePermsFree(def->perms);
     VIR_FREE(def->timestamps);
